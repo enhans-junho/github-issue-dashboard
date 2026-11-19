@@ -268,8 +268,7 @@ td.nowrap{white-space:nowrap;color:var(--ink-2);font-variant-numeric:tabular-num
       <div class="form">
         <label class="field"><span>저장소 (조직/저장소 · GitHub 주소를 붙여 넣어도 됨)</span>
           <input type="text" id="fRepoFull" required placeholder="조직/저장소" spellcheck="false"></label>
-        <label class="field" style="grid-column:span 2;min-width:0"><span>Personal Access Token
-          · <a id="tokenLink" href="#" target="_blank" rel="noopener">토큰 만들기 ↗</a> (읽기 전용 권한이 미리 채워진 GitHub 화면이 열립니다)</span>
+        <label class="field" style="grid-column:span 2;min-width:0"><span>Personal Access Token</span>
           <input type="password" id="fToken" placeholder="github_pat_… 또는 ghp_…"></label>
       </div>
       <div class="checks">
@@ -286,7 +285,7 @@ td.nowrap{white-space:nowrap;color:var(--ink-2);font-variant-numeric:tabular-num
     <div class="hint">
       <b>토큰 만들기</b>
       <ol>
-        <li><b>토큰 만들기 ↗</b>를 누르면 이름 · Resource owner · <b>Issues: Read-only</b> 가 채워진 화면이 열립니다. Repository access에서 이 저장소만 고르고 Generate → 나온 토큰을 위 칸에 붙여 넣으세요. Resource owner가 개인 계정으로 바뀌어 있으면 <code id="hintOwner2">조직명</code>으로 다시 고르세요.</li>
+        <li><a id="tokenLink" href="#" target="_blank" rel="noopener"><b>토큰 만들기 ↗</b></a>를 누르면 이름 · Resource owner · <b>Issues: Read-only</b> 가 채워진 화면이 열립니다. Repository access에서 이 저장소만 고르고 Generate → 나온 토큰을 위 칸에 붙여 넣으세요. Resource owner가 개인 계정으로 바뀌어 있으면 <code id="hintOwner2">조직명</code>으로 다시 고르세요.</li>
         <li>직접 만들 때: GitHub → Settings → Developer settings → Fine-grained tokens → Generate. Resource owner = <code id="hintOwner">조직명</code>, Repository access = 이 저장소만, Permissions → <b>Issues: Read-only</b> (Metadata는 자동 포함). 조직 정책상 관리자 승인이 필요할 수 있습니다.</li>
         <li>Classic 토큰을 쓰면 <code>repo</code> 범위가 필요하고, 조직에 SAML SSO가 걸려 있으면 토큰 목록에서 <b>Configure SSO → Authorize</b>를 눌러야 합니다.</li>
       </ol>
