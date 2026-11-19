@@ -266,9 +266,10 @@ td.nowrap{white-space:nowrap;color:var(--ink-2);font-variant-numeric:tabular-num
     <p>비공개 저장소는 GitHub 토큰이 필요합니다. 토큰은 이 브라우저에만 저장되고 api.github.com 외에는 보내지 않습니다. 주소 끝에 <code>?repo=조직/저장소</code>를 붙이면 그 저장소가 미리 채워집니다.</p>
     <form id="setupForm" autocomplete="off">
       <div class="form">
-        <label class="field"><span>Owner (조직)</span><input type="text" id="fOwner" required></label>
-        <label class="field"><span>Repository</span><input type="text" id="fRepo" required></label>
-        <label class="field" style="grid-column:span 2;min-width:0"><span>Personal Access Token</span>
+        <label class="field"><span>저장소 (조직/저장소 · GitHub 주소를 붙여 넣어도 됨)</span>
+          <input type="text" id="fRepoFull" required placeholder="조직/저장소" spellcheck="false"></label>
+        <label class="field" style="grid-column:span 2;min-width:0"><span>Personal Access Token
+          · <a id="tokenLink" href="#" target="_blank" rel="noopener">토큰 만들기 ↗</a> (읽기 전용 권한이 미리 채워진 GitHub 화면이 열립니다)</span>
           <input type="password" id="fToken" placeholder="github_pat_… 또는 ghp_…"></label>
       </div>
       <div class="checks">
@@ -285,7 +286,8 @@ td.nowrap{white-space:nowrap;color:var(--ink-2);font-variant-numeric:tabular-num
     <div class="hint">
       <b>토큰 만들기</b>
       <ol>
-        <li>Fine-grained 권장: GitHub → Settings → Developer settings → Fine-grained tokens → Generate. Resource owner = <code id="hintOwner">조직명</code>, Repository access = 이 저장소만, Permissions → <b>Issues: Read-only</b> (Metadata는 자동 포함). 조직 정책상 관리자 승인이 필요할 수 있습니다.</li>
+        <li><b>토큰 만들기 ↗</b>를 누르면 이름 · Resource owner · <b>Issues: Read-only</b> 가 채워진 화면이 열립니다. Repository access에서 이 저장소만 고르고 Generate → 나온 토큰을 위 칸에 붙여 넣으세요. Resource owner가 개인 계정으로 바뀌어 있으면 <code id="hintOwner2">조직명</code>으로 다시 고르세요.</li>
+        <li>직접 만들 때: GitHub → Settings → Developer settings → Fine-grained tokens → Generate. Resource owner = <code id="hintOwner">조직명</code>, Repository access = 이 저장소만, Permissions → <b>Issues: Read-only</b> (Metadata는 자동 포함). 조직 정책상 관리자 승인이 필요할 수 있습니다.</li>
         <li>Classic 토큰을 쓰면 <code>repo</code> 범위가 필요하고, 조직에 SAML SSO가 걸려 있으면 토큰 목록에서 <b>Configure SSO → Authorize</b>를 눌러야 합니다.</li>
       </ol>
     </div>
@@ -373,7 +375,7 @@ td.nowrap{white-space:nowrap;color:var(--ink-2);font-variant-numeric:tabular-num
 <script>
 'use strict';
 /* ================= 기본값 ================= */
-const DEFAULT = { owner:'', repo:'', interval:30, pauseHidden:true, notify:false };
+const DEFAULT = { owner:'enhans-main-org', repo:'AgentOS-FDE-ksqa-platform', interval:30, pauseHidden:true, notify:false };
 const MAX_PAGES = 40;                 // 전체 동기화 상한 (100건 × 40 = 4,000건)
 const FULL_RESYNC_MS = 60*60*1000;    // 삭제·이관 감지용 전체 재동기화
 const CHANGE_TTL_MS = 15*60*1000;     // 변경 강조 유지 시간
@@ -929,12 +931,31 @@ function renderFeed(){
 }
 
 /* ================= 설정 ================= */
-function openSetup(){
-  $('#fOwner').value=S.cfg.owner; $('#fRepo').value=S.cfg.repo; $('#fToken').value=S.token;
-  $('#fRemember').checked=!!lsGet('ghmon.token',''); $('#fPause').checked=!!S.cfg.pauseHidden; $('#fNotify').checked=!!S.cfg.notify;
-  $('#hintOwner').textContent=S.cfg.owner||'조직명';
-  $('#setup').classList.add('show'); $('#fToken').focus();
+// 「조직/저장소」, https://github.com/조직/저장소(/issues/12 …), git@github.com:조직/저장소.git 을 모두 받는다
+function parseRepo(v){
+  v=(v||'').trim().replace(/^git@github\.com:/i,'').replace(/^(https?:\/\/)?(www\.)?github\.com\//i,'');
+  const m=v.match(/^([\w.-]+)\/([\w.-]+)/); if(!m) return null;
+  return {owner:m[1], repo:m[2].replace(/\.git$/,'')};
 }
+function tokenUrl(owner,repo){
+  const q=new URLSearchParams({name:`issue-monitor ${repo||''}`.trim(), description:'GitHub 이슈 모니터 (읽기 전용)', expires_in:'90', issues:'read'});
+  if (owner) q.set('target_name',owner);
+  return 'https://github.com/settings/personal-access-tokens/new?'+q;
+}
+function syncTokenHint(){
+  const r=parseRepo($('#fRepoFull').value)||{};
+  $('#tokenLink').href=tokenUrl(r.owner,r.repo);
+  $('#hintOwner').textContent=$('#hintOwner2').textContent=r.owner||'조직명';
+}
+function openSetup(){
+  $('#fRepoFull').value=S.cfg.owner&&S.cfg.repo?repoKey():''; $('#fToken').value=S.token;
+  // 처음 넣는 토큰은 기억하는 것이 기본. 이미 탭 한정으로 쓰던 사람은 그 선택을 유지한다
+  $('#fRemember').checked = S.token ? !!lsGet('ghmon.token','') : true;
+  $('#fPause').checked=!!S.cfg.pauseHidden; $('#fNotify').checked=!!S.cfg.notify;
+  syncTokenHint();
+  $('#setup').classList.add('show'); ($('#fRepoFull').value?$('#fToken'):$('#fRepoFull')).focus();
+}
+$('#fRepoFull').addEventListener('input',syncTokenHint);
 function closeSetup(){ $('#setup').classList.remove('show'); }
 $('#settingsBtn').onclick=()=> $('#setup').classList.contains('show')?closeSetup():openSetup();
 $('#cancelSetup').onclick=closeSetup;
@@ -945,7 +966,9 @@ $('#fNotify').addEventListener('change',async e=>{
 });
 $('#setupForm').addEventListener('submit',e=>{
   e.preventDefault();
-  const owner=$('#fOwner').value.trim(), repo=$('#fRepo').value.trim().replace(/\.git$/,'');
+  const r=parseRepo($('#fRepoFull').value);
+  if (!r){ showBanner('warn','저장소는 <code>조직/저장소</code> 꼴이나 GitHub 주소로 넣어 주세요.'); $('#fRepoFull').focus(); return; }
+  hideBanner(); const {owner,repo}=r;
   const changedRepo = owner!==S.cfg.owner || repo!==S.cfg.repo;
   S.cfg.owner=owner; S.cfg.repo=repo; S.cfg.pauseHidden=$('#fPause').checked; S.cfg.notify=$('#fNotify').checked;
   lsSet('ghmon.cfg',S.cfg);

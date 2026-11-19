@@ -4,6 +4,7 @@ GitHub 저장소의 이슈를 주기적으로 불러와 보여 주는 단일 페
 
 - 주소: https://enhans-junho.github.io/github-issue-dashboard/
 - 특정 저장소를 바로 열기: `https://enhans-junho.github.io/github-issue-dashboard/?repo=<조직>/<저장소>`
+- 주소만 열면 `enhans-main-org/AgentOS-FDE-ksqa-platform` 이 채워져 있어 토큰 한 칸만 넣으면 됩니다. 저장소 칸에는 GitHub 주소를 그대로 붙여 넣어도 됩니다.
 
 ## 동작 방식
 
@@ -13,6 +14,8 @@ GitHub 저장소의 이슈를 주기적으로 불러와 보여 주는 단일 페
 
 ## 토큰
 
+- 설정 화면의 **토큰 만들기 ↗** 를 누르면 이름 · Resource owner · Issues: Read-only 가 미리 채워진 GitHub 토큰 생성 화면이 열립니다. Repository access 만 고르고 Generate 하면 됩니다.
+- 「토큰을 이 브라우저에 기억」이 기본으로 켜져 있어, 한 번 넣으면 다음부터는 입력 없이 바로 열립니다.
 - Fine-grained 토큰 권장: Resource owner = 대상 조직, Repository access = 대상 저장소만, Permissions = **Issues: Read-only**
 - Classic 토큰은 `repo` 범위가 필요하고, 조직에 SAML SSO가 있으면 SSO 승인이 필요합니다.
 
