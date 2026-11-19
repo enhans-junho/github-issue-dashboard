@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
 <meta name="referrer" content="no-referrer">
-<title>GitHub 이슈 모니터</title>
+<title>심평원 집체 GitHub 이슈 모니터</title>
 <style>
 :root{
   color-scheme: light;
@@ -52,8 +52,8 @@ button,select,input{font:inherit;color:inherit}
 .top{display:flex;flex-wrap:wrap;align-items:center;gap:12px 16px;padding:12px 16px;background:var(--surface);
   border:1px solid var(--border);border-radius:12px;position:sticky;top:8px;z-index:20}
 .brand{display:flex;flex-direction:column;min-width:0;margin-right:auto}
-.brand h1{font-size:16px;margin:0;font-weight:650;letter-spacing:-.01em}
-.brand .repo{font-size:12px;color:var(--ink-2);text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.brand h1{font-size:22px;margin:0;font-weight:650;letter-spacing:-.01em}
+.brand .repo{font-size:13px;color:var(--ink-2);text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .brand .repo:hover{text-decoration:underline}
 .status{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-2);min-width:220px}
 .dot{width:9px;height:9px;border-radius:50%;background:var(--muted);flex:none}
@@ -230,7 +230,7 @@ td.nowrap{white-space:nowrap;color:var(--ink-2);font-variant-numeric:tabular-num
 
   <header class="top">
     <div class="brand">
-      <h1>GitHub 이슈 모니터</h1>
+      <h1>심평원 집체 GitHub 이슈 모니터</h1>
       <a class="repo" id="repoLink" href="#" target="_blank" rel="noopener">—</a>
     </div>
     <div class="status" aria-live="polite">
@@ -640,7 +640,7 @@ setInterval(()=>{ if(S.initialized){ renderFeed(); } },30000); // 상대 시각 
 /* ================= 알림 ================= */
 function notify(notes){
   const important=notes.filter(n=>n.kinds.some(k=>['new','closed','reopened'].includes(k)));
-  if (document.hidden && notes.length){ S.unseen+=notes.length; document.title=`(${S.unseen}) GitHub 이슈 모니터`; }
+  if (document.hidden && notes.length){ S.unseen+=notes.length; document.title=`(${S.unseen}) 심평원 집체 GitHub 이슈 모니터`; }
   if (!S.cfg.notify || !important.length || typeof Notification==='undefined' || Notification.permission!=='granted') return;
   try{
     if (important.length===1){
@@ -654,7 +654,7 @@ function notify(notes){
 }
 document.addEventListener('visibilitychange',()=>{
   if (!document.hidden){
-    S.unseen=0; document.title='GitHub 이슈 모니터';
+    S.unseen=0; document.title='심평원 집체 GitHub 이슈 모니터';
     if (S.cfg.pauseHidden && !S.busy && effInterval()){
       const overdue = !S.lastSync || Date.now()-S.lastSync >= effInterval()*1000;
       if (overdue) tick(); else schedule();
