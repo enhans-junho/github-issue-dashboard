@@ -279,6 +279,7 @@ td.nowrap{white-space:nowrap;color:var(--ink-2);font-variant-numeric:tabular-num
       <div class="actions">
         <button type="submit" class="btn primary">저장하고 연결</button>
         <button type="button" class="btn" id="cancelSetup">닫기</button>
+        <button type="button" class="btn" id="shareBtn" title="내 토큰이 들어간 링크를 복사합니다. DM으로만 보내세요.">팀원용 공유 링크 복사</button>
         <button type="button" class="btn" id="forgetBtn">토큰·캐시 삭제</button>
       </div>
     </form>
@@ -287,6 +288,7 @@ td.nowrap{white-space:nowrap;color:var(--ink-2);font-variant-numeric:tabular-num
       <ol>
         <li><a id="tokenLink" href="#" target="_blank" rel="noopener"><b>토큰 만들기 ↗</b></a>를 누르면 이름 · Resource owner · <b>Issues: Read-only</b> 가 채워진 화면이 열립니다. Repository access에서 이 저장소만 고르고 Generate → 나온 토큰을 위 칸에 붙여 넣으세요. Resource owner가 개인 계정으로 바뀌어 있으면 <code id="hintOwner2">조직명</code>으로 다시 고르세요.</li>
         <li>직접 만들 때: GitHub → Settings → Developer settings → Fine-grained tokens → Generate. Resource owner = <code id="hintOwner">조직명</code>, Repository access = 이 저장소만, Permissions → <b>Issues: Read-only</b> (Metadata는 자동 포함). 조직 정책상 관리자 승인이 필요할 수 있습니다.</li>
+        <li>토큰을 만들 수 없으면 토큰이 있는 팀원에게 <b>공유 링크</b>를 DM으로 받아 한 번 열면 됩니다. 링크를 받은 사람은 그 브라우저에 토큰이 저장되고, 링크는 다른 곳에 다시 붙이지 마세요.</li>
         <li>Classic 토큰을 쓰면 <code>repo</code> 범위가 필요하고, 조직에 SAML SSO가 걸려 있으면 토큰 목록에서 <b>Configure SSO → Authorize</b>를 눌러야 합니다.</li>
       </ol>
     </div>
@@ -437,6 +439,13 @@ const repoKey = () => `${S.cfg.owner}/${S.cfg.repo}`;
 (()=>{ try{ const q=new URLSearchParams(location.search).get('repo'); const m=q&&q.trim().match(/^([\w.-]+)\/([\w.-]+)$/);
   if (m){ S.cfg.owner=m[1]; S.cfg.repo=m[2].replace(/\.git$/,''); lsSet('ghmon.cfg',S.cfg); } }catch(e){} })();
 S.token = (sstore()?.getItem('ghmon.token') || lsGet('ghmon.token','') || '');
+// 공유 링크(#token=…)로 열면 토큰을 이 브라우저에만 저장하고 주소창에서 지운다.
+// 주소의 # 뒤는 서버로 보내지지 않으므로 GitHub Pages 기록에도 남지 않는다.
+S.fromShare = false;
+(()=>{ try{ const h=new URLSearchParams(location.hash.slice(1)); const t=(h.get('token')||'').trim();
+  if (t && /^(gh[pousr]_|github_pat_)[\w]+$/.test(t)){ S.token=t; sstore()?.setItem('ghmon.token',t); lsSet('ghmon.token',t); S.fromShare=true; }
+  if (h.has('token')){ const u=new URL(location.href); u.hash=''; history.replaceState(null,'',u); } }catch(e){} })();
+function shareUrl(){ const u=new URL(location.origin+location.pathname); u.searchParams.set('repo',repoKey()); u.hash='token='+encodeURIComponent(S.token); return u.toString(); }
 
 /* ================= GitHub API ================= */
 class ApiError extends Error{ constructor(kind,msg,status,reset){ super(msg); this.kind=kind; this.status=status; this.reset=reset; } }
@@ -978,6 +987,11 @@ $('#setupForm').addEventListener('submit',e=>{
   try{ const u=new URL(location.href); u.searchParams.set('repo',repoKey()); history.replaceState(null,'',u); }catch(err){}
   S.errors=0; S.etag.clear(); closeSetup(); render(); tick();
 });
+$('#shareBtn').onclick=async()=>{
+  if (!S.token || !S.cfg.owner){ showBanner('warn','먼저 토큰을 넣고 <b>저장하고 연결</b>을 눌러 주세요.'); return; }
+  try{ await navigator.clipboard.writeText(shareUrl()); showBanner('info','팀원용 공유 링크를 복사했습니다. 이 링크에는 토큰이 들어 있으니 <b>DM으로만</b> 보내고 채널·이슈·문서에는 붙이지 마세요.'); }
+  catch(err){ showBanner('warn','클립보드에 복사하지 못했습니다. 브라우저의 클립보드 권한을 확인해 주세요.'); }
+};
 $('#forgetBtn').onclick=()=>{
   lsDel('ghmon.token'); try{ sstore()?.removeItem('ghmon.token'); }catch(e){}
   lsDel('ghmon.cache.'+repoKey()); S.token=''; $('#fToken').value=''; resetData(); render();
@@ -1029,7 +1043,7 @@ let rz; addEventListener('resize',()=>{ clearTimeout(rz); rz=setTimeout(()=>{ if
 renderHeader();
 if (loadCache()) render(); else { renderFilterOptions(); renderTable(); }
 if (!S.token || !S.cfg.owner || !S.cfg.repo){ openSetup(); setStatus('paused','연결 정보 입력 대기'); }
-else tick();
+else { if (S.fromShare) showBanner('info','공유 링크로 연결했습니다. 토큰은 이 브라우저에만 저장됐고, 다음부터는 링크 없이 이 주소로 열면 됩니다.'); tick(); }
 </script>
 </body>
 </html>
