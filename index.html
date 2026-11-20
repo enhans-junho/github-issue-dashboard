@@ -295,7 +295,7 @@ td.nowrap{white-space:nowrap;color:var(--ink-2);font-variant-numeric:tabular-num
   </section>
 
   <section class="kpis" id="kpis" aria-label="핵심 지표"></section>
-  <section class="kpis" id="qualityKpis" aria-label="결함 및 개선요건"></section>
+  <section class="kpis" id="qualityKpis" aria-label="테스트별 미해결 및 접수 유형별 건수"></section>
 
   <section class="grid">
     <div class="panel span-8">
@@ -719,10 +719,10 @@ function kpiTile({k,v,unit,s,status,onclick,title}){
     <div class="k">${esc(k)} ${st}</div><div class="v">${v}${unit?`<small>${esc(unit)}</small>`:''}</div><div class="s">${s||''}</div></div>`;
 }
 const qualityMetrics = [
-  {key:'unitDefects', name:'단위테스트 결함 미해결', label:'단위 테스트 결함', state:'open'},
-  {key:'integrationDefects', name:'통합테스트 결함 미해결', label:'통합테스트 결함', state:'open'},
-  {key:'bugs', name:'결함', label:'bug', state:'all'},
-  {key:'enhancements', name:'개선요건', label:'enhancement', state:'all'}
+  {key:'unitTests', name:'단위테스트 미해결', label:'단위 테스트 결함', state:'open'},
+  {key:'integrationTests', name:'통합테스트 미해결', label:'통합테스트 결함', state:'open'},
+  {key:'bugs', name:'결함', label:'결함', state:'all'},
+  {key:'enhancements', name:'개선요건', label:'기능개선', state:'all'}
 ];
 function renderKpis(){
   const all=[...S.issues.values()], open=all.filter(i=>i.state==='open');
