@@ -177,6 +177,15 @@ details.tbl th:first-child,details.tbl td:first-child{text-align:left}
 
 /* table */
 .filters{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px}
+.filter{position:relative;max-width:100%}
+.filter summary{max-width:100%;overflow-wrap:anywhere}
+.filter summary:focus-visible{outline:2px solid var(--focus)}
+.choices{position:absolute;top:100%;left:0;z-index:4;min-width:155px;width:max-content;max-width:min(300px,85vw);max-height:260px;overflow:auto;
+  padding:6px;border:1px solid var(--border);border-radius:8px;background:var(--surface);box-shadow:0 4px 14px #0002}
+.choices label{display:flex;align-items:center;gap:8px;min-height:30px;padding:2px 6px;cursor:pointer;overflow-wrap:anywhere}
+.choices label:hover{background:var(--surface-2)}
+.choices small{display:block;padding:4px 6px;color:var(--muted)}
+@media(max-width:700px){.filters{position:relative}.filter{position:static}.choices{left:0;right:0;top:auto;width:auto;max-width:none}}
 .filters input[type=search]{flex:1;min-width:180px}
 .filters .count{font-size:12px;color:var(--muted);margin-left:auto}
 .tw{overflow:auto;max-height:720px;border-top:1px solid var(--grid)}
@@ -330,11 +339,11 @@ td.nowrap{white-space:nowrap;color:var(--ink-2);font-variant-numeric:tabular-num
     <div class="panel span-8">
       <div class="ph"><div><h3>이슈 목록</h3><div class="sub">최근 갱신분은 파란 띠로 표시(15분 유지)</div></div></div>
       <div class="filters">
-        <select id="flState" aria-label="상태"><option value="open">열림</option><option value="closed">닫힘</option><option value="all">전체</option></select>
-        <select id="flLabel" aria-label="라벨"></select>
-        <select id="flAssignee" aria-label="담당자"></select>
-        <select id="flMilestone" aria-label="마일스톤"></select>
-        <select id="flAge" aria-label="경과일"><option value="">경과일 전체</option></select>
+        <details class="filter" name="issue-filter" data-filter="state"><summary class="btn">상태</summary><div class="choices" role="group" aria-label="상태"></div></details>
+        <details class="filter" name="issue-filter" data-filter="label"><summary class="btn">라벨</summary><div class="choices" role="group" aria-label="라벨"></div></details>
+        <details class="filter" name="issue-filter" data-filter="assignee"><summary class="btn">담당자</summary><div class="choices" role="group" aria-label="담당자"></div></details>
+        <details class="filter" name="issue-filter" data-filter="milestone"><summary class="btn">마일스톤</summary><div class="choices" role="group" aria-label="마일스톤"></div></details>
+        <details class="filter" name="issue-filter" data-filter="age"><summary class="btn">경과일</summary><div class="choices" role="group" aria-label="경과일"></div></details>
         <input type="search" id="flQ" placeholder="제목·번호·작성자 검색">
         <button class="btn" id="flReset">초기화</button>
         <span class="count" id="flCount"></span>
@@ -433,7 +442,7 @@ const S = {
   changed: new Map(), unseen: 0, freshFeed: new Set(),
   timer: null, nextAt: 0, busy: false, errors: 0, initialized: false, quietNext: false,
   range: 30, shown: 100,
-  f: { state:'open', label:'', assignee:'', milestone:'', age:'', q:'', sort:'updated', dir:-1 }
+  f: { ...defaultFilters(), sort:'updated', dir:-1 }
 };
 const repoKey = () => `${S.cfg.owner}/${S.cfg.repo}`;
 // 주소에 ?repo=owner/name 이 있으면 그 저장소로 맞춘다 (즐겨찾기·공유용)
@@ -722,10 +731,10 @@ function kpiTile({k,v,unit,s,status,onclick,title}){
     <div class="k">${esc(k)} ${st}</div><div class="v">${v}${unit?`<small>${esc(unit)}</small>`:''}</div><div class="s">${s||''}</div></div>`;
 }
 const qualityMetrics = [
-  {key:'unitTests', name:'단위테스트 미해결', label:'단위테스트', state:'open'},
-  {key:'integrationTests', name:'통합테스트 미해결', label:'통합테스트', state:'open'},
-  {key:'bugs', name:'결함', label:'결함', state:'all'},
-  {key:'enhancements', name:'개선요건', label:'기능개선', state:'all'}
+  {key:'unitTests', name:'단위테스트 미해결', label:'단위테스트'},
+  {key:'integrationTests', name:'통합테스트 미해결', label:'통합테스트'},
+  {key:'bugs', name:'결함 미해결', label:'결함'},
+  {key:'enhancements', name:'개선요건 미해결', label:'기능개선'}
 ];
 function renderKpis(){
   const all=[...S.issues.values()], open=all.filter(i=>i.state==='open');
@@ -754,11 +763,10 @@ function renderKpis(){
   $('#qualityKpis').innerHTML=qualityMetrics.map(metric=>{
     const labeled=all.filter(issue=>issue.labels.some(label=>label.name===metric.label));
     const unresolved=labeled.filter(issue=>issue.state==='open').length;
-    const openOnly=metric.state==='open';
     return kpiTile({
-      k:metric.name, v:(openOnly?unresolved:labeled.length).toLocaleString(), unit:'건',
-      s:openOnly?`전체 ${labeled.length}건 중`:`전체 · 미해결 ${unresolved}건`,
-      title:`${metric.label} 라벨 · ${openOnly?'열린 이슈':'열린 이슈와 닫힌 이슈'}`,
+      k:metric.name, v:unresolved.toLocaleString(), unit:'건',
+      s:`전체 ${labeled.length}건 중`,
+      title:`${metric.label} 라벨 · 열린 이슈`,
       onclick:metric.key
     });
   }).join('');
@@ -841,7 +849,7 @@ function renderAge(){
 function hbars(host,items,{filterKey}){
   if(!items.length){ host.innerHTML='<div class="empty">열린 이슈가 없습니다</div>'; return; }
   const max=Math.max(1,...items.map(i=>i.v));
-  host.innerHTML='<div class="hbars">'+items.map(it=>`<div class="hrow${S.f[filterKey]===it.key?' on':''}" data-fk="${filterKey}" data-fv="${esc(it.key)}" tabindex="0" role="button" data-tip="${esc(it.name)}: ${it.v}건">
+  host.innerHTML='<div class="hbars">'+items.map(it=>`<div class="hrow${S.f[filterKey].includes(it.key)?' on':''}" data-fk="${filterKey}" data-fv="${esc(it.key)}" tabindex="0" role="button" data-tip="${esc(it.name)}: ${it.v}건">
     <div class="n">${it.sw?`<span class="sw" style="background:#${esc(it.sw)}"></span>`:''}<em>${esc(it.name)}</em></div>
     <div class="track"><div class="bar" style="width:${(it.v/max*100).toFixed(1)}%"></div></div>
     <div class="val">${it.v}</div></div>`).join('')+'</div>';
@@ -873,30 +881,53 @@ function renderMilestones(){
 }
 
 /* ---- 표 ---- */
+function defaultFilters(){
+  return {state:['open'], label:[], assignee:[], milestone:[], age:[], q:''};
+}
 function renderFilterOptions(){
-  const labels=new Set(), people=new Set(), ms=new Set();
-  for(const i of S.issues.values()){ i.labels.forEach(l=>labels.add(l.name)); i.assignees.forEach(a=>people.add(a)); if(i.milestone) ms.add(i.milestone.title); }
-  if(S.f.label && S.f.label!=='__none') labels.add(S.f.label);
-  const opt=(v,t,cur)=>`<option value="${esc(v)}"${cur===v?' selected':''}>${esc(t)}</option>`;
-  $('#flLabel').innerHTML=opt('','라벨 전체',S.f.label)+opt('__none','(라벨 없음)',S.f.label)+[...labels].sort().map(l=>opt(l,l,S.f.label)).join('');
-  $('#flAssignee').innerHTML=opt('','담당자 전체',S.f.assignee)+opt('__none','(미배정)',S.f.assignee)+[...people].sort().map(p=>opt(p,p,S.f.assignee)).join('');
-  $('#flMilestone').innerHTML=opt('','마일스톤 전체',S.f.milestone)+opt('__none','(마일스톤 없음)',S.f.milestone)+[...ms].sort().map(m=>opt(m,m,S.f.milestone)).join('');
-  $('#flAge').innerHTML=opt('','경과일 전체',S.f.age)+opt('stale','7일+ 미갱신',S.f.age)+opt('today','오늘 생성',S.f.age)+opt('closed7','최근 7일 종료',S.f.age)+AGE_BINS.map(b=>opt(b.k,'경과 '+b.t,S.f.age)).join('');
-  $('#flState').value=S.f.state; $('#flQ').value!==S.f.q && ($('#flQ').value=S.f.q);
+  const labels=new Set(S.f.label), people=new Set(S.f.assignee), milestones=new Set(S.f.milestone);
+  for(const issue of S.issues.values()){
+    issue.labels.forEach(l=>labels.add(l.name));
+    issue.assignees.forEach(a=>people.add(a));
+    if(issue.milestone) milestones.add(issue.milestone.title);
+  }
+  function options(values,none){
+    return [['__none',none], ...[...values].filter(v=>v!=='__none').sort().map(v=>[v,v])];
+  }
+  const fields={
+    state:[['open','열림'],['closed','닫힘']],
+    label:options(labels,'라벨 없음'),
+    assignee:options(people,'미배정'),
+    milestone:options(milestones,'마일스톤 없음'),
+    age:[['stale','7일+ 미갱신'],['today','오늘 생성'],['closed7','최근 7일 종료'],...AGE_BINS.map(b=>[b.k,'경과 '+b.t])]
+  };
+  for(const filter of document.querySelectorAll('.filter')){
+    const key=filter.dataset.filter, selected=S.f[key], box=filter.querySelector('.choices');
+    const name=box.getAttribute('aria-label'), choices=fields[key];
+    const names=choices.filter(([value])=>selected.includes(value)).map(([,title])=>title);
+    filter.querySelector('summary').textContent=name+' · '+(names.join(', ')||'전체');
+    const html=(key==='label'?'<small>선택한 라벨을 모두 포함</small>':'')+
+      [['','전체'],...choices].map(([value,title])=>`<label><input type="checkbox" value="${esc(value)}">${esc(title)}</label>`).join('');
+    if(box.dataset.options!==html){ box.innerHTML=html; box.dataset.options=html; }
+    for(const input of box.querySelectorAll('input')) input.checked=input.value?selected.includes(input.value):!selected.length;
+  }
+  if(document.activeElement!==$('#flQ')) $('#flQ').value=S.f.q;
+}
+function matchesAge(issue,age,now,today){
+  if(age==='stale') return issue.state==='open' && now-new Date(issue.updated_at)>7*DAY;
+  if(age==='today') return dayKey(issue.created_at)===today;
+  if(age==='closed7') return issue.closed_at && now-new Date(issue.closed_at)<7*DAY;
+  const bin=AGE_BINS.find(b=>b.k===age), days=ageDays(issue);
+  return bin && days>=bin.lo && days<bin.hi;
 }
 function filtered(){
   const f=S.f, q=f.q.trim().toLowerCase(), now=Date.now(), today=dayKey(now);
   let arr=[...S.issues.values()].filter(i=>{
-    if (f.state!=='all' && i.state!==f.state) return false;
-    if (f.label==='__none' ? i.labels.length : (f.label && !i.labels.some(l=>l.name===f.label))) return false;
-    if (f.assignee==='__none' ? i.assignees.length : (f.assignee && !i.assignees.includes(f.assignee))) return false;
-    if (f.milestone==='__none' ? i.milestone : (f.milestone && i.milestone?.title!==f.milestone)) return false;
-    if (f.age){
-      if (f.age==='stale'){ if(now-new Date(i.updated_at)<=7*DAY) return false; }
-      else if (f.age==='today'){ if(dayKey(i.created_at)!==today) return false; }
-      else if (f.age==='closed7'){ if(!i.closed_at || now-new Date(i.closed_at)>=7*DAY) return false; }
-      else { const b=AGE_BINS.find(b=>b.k===f.age); const a=ageDays(i); if(b && !(a>=b.lo&&a<b.hi)) return false; }
-    }
+    if(f.state.length && !f.state.includes(i.state)) return false;
+    if(!f.label.every(label=>label==='__none'?!i.labels.length:i.labels.some(l=>l.name===label))) return false;
+    if(f.assignee.length && !f.assignee.some(a=>a==='__none'?!i.assignees.length:i.assignees.includes(a))) return false;
+    if(f.milestone.length && !f.milestone.includes(i.milestone?.title||'__none')) return false;
+    if(f.age.length && !f.age.some(age=>matchesAge(i,age,now,today))) return false;
     if (q){ const hay=(`#${i.number} ${i.title} ${i.user} ${i.assignees.join(' ')} ${i.labels.map(l=>l.name).join(' ')}`).toLowerCase(); if(!hay.includes(q)) return false; }
     return true;
   });
@@ -1035,27 +1066,59 @@ $('#themeBtn').onclick=()=>{
 (()=>{ const t=lsGet('ghmon.theme',null); if(t) document.documentElement.dataset.theme=t; })();
 $('#rangeSeg').onclick=e=>{ const b=e.target.closest('button'); if(!b) return; S.range=+b.dataset.d; document.querySelectorAll('#rangeSeg button').forEach(x=>x.classList.toggle('on',x===b)); renderTrend(); renderBacklog(); };
 const setF=(k,v)=>{ S.f[k]=v; S.shown=100; renderFilterOptions(); renderTable(); renderLabels(); renderAssignees(); };
-$('#flState').onchange=e=>setF('state',e.target.value);
-$('#flLabel').onchange=e=>setF('label',e.target.value);
-$('#flAssignee').onchange=e=>setF('assignee',e.target.value);
-$('#flMilestone').onchange=e=>setF('milestone',e.target.value);
-$('#flAge').onchange=e=>{ const v=e.target.value; if(v==='closed7') S.f.state='closed'; else if(v && S.f.state==='closed') S.f.state='open'; setF('age',v); };
+function toggleFilter(key,value){
+  const selected=S.f[key];
+  let next=selected.includes(value)?selected.filter(v=>v!==value):[...selected,value];
+  if(key==='label' && next.includes('__none')) next=value==='__none'?['__none']:next.filter(v=>v!=='__none');
+  setF(key,value?next:[]);
+}
+$('.filters').addEventListener('change',e=>{
+  const filter=e.target.closest('[data-filter]');
+  if(!filter) return;
+  const key=filter.dataset.filter, value=e.target.value;
+  if(key==='age' && value && e.target.checked){
+    if(value==='closed7') S.f.state=S.f.age.length?[]:['closed'];
+    else if(S.f.state.length===1 && S.f.state[0]==='closed') S.f.state=S.f.age.includes('closed7')?[]:['open'];
+  }
+  toggleFilter(key,value);
+});
+document.addEventListener('click',e=>{
+  document.querySelectorAll('.filter[open]').forEach(f=>{ if(!f.contains(e.target)) f.open=false; });
+});
+document.addEventListener('keydown',e=>{
+  const f=e.target.closest('.filter[open]');
+  if(e.key==='Escape' && f){ f.open=false; f.querySelector('summary').focus(); }
+});
 let qT; $('#flQ').oninput=e=>{ clearTimeout(qT); qT=setTimeout(()=>setF('q',e.target.value),150); };
-$('#flReset').onclick=()=>{ S.f={...S.f,state:'open',label:'',assignee:'',milestone:'',age:'',q:''}; $('#flQ').value=''; setF('q',''); };
+function resetFilters(){
+  clearTimeout(qT);
+  Object.assign(S.f,defaultFilters());
+  $('#flQ').value='';
+}
+$('#flReset').onclick=()=>{ resetFilters(); setF('q',''); };
 $('#moreBtn').onclick=()=>{ S.shown+=100; renderTable(); };
 document.querySelector('table.issues thead').onclick=e=>{ const th=e.target.closest('th[data-sort]'); if(!th) return; const k=th.dataset.sort; if(S.f.sort===k) S.f.dir*=-1; else { S.f.sort=k; S.f.dir=(k==='assignee')?1:-1; } renderTable(); };
 // 차트 → 필터
 document.addEventListener('click',e=>{
   const r=e.target.closest('[data-fk]');
-  if (r){ const k=r.dataset.fk, v=r.dataset.fv; const nv = S.f[k]===v?'':v; if(k!=='milestone') S.f.state = S.f.state==='closed'?'open':S.f.state; setF(k,nv); document.querySelector('.tw').scrollIntoView({behavior:'smooth',block:'nearest'}); return; }
+  if(r){
+    const k=r.dataset.fk;
+    if(k!=='milestone') S.f.state=['open'];
+    toggleFilter(k,r.dataset.fv);
+    document.querySelector('.tw').scrollIntoView({behavior:'smooth',block:'nearest'});
+    return;
+  }
   const c=e.target.closest('[data-age]');
-  if (c){ const v=c.dataset.age; S.f.state='open'; setF('age',S.f.age===v?'':v); return; }
+  if(c){ S.f.state=['open']; toggleFilter('age',c.dataset.age); return; }
   const kp=e.target.closest('[data-kpi]');
-  if (kp){ const k=kp.dataset.kpi; S.f={...S.f,label:'',assignee:'',milestone:'',age:'',q:''}; $('#flQ').value='';
-    const metric=qualityMetrics.find(item=>item.key===k);
-    if(metric){ S.f.state=metric.state; S.f.label=metric.label; }
-    if(k==='open'){S.f.state='open';} if(k==='today'){S.f.state='all';S.f.age='today';} if(k==='closed7'){S.f.state='closed';S.f.age='closed7';}
-    if(k==='unassigned'){S.f.state='open';S.f.assignee='__none';} if(k==='stale'){S.f.state='open';S.f.age='stale';}
+  if(kp){
+    resetFilters();
+    const k=kp.dataset.kpi, metric=qualityMetrics.find(item=>item.key===k);
+    if(metric) S.f.label=[metric.label];
+    if(k==='today'){ S.f.state=[]; S.f.age=['today']; }
+    if(k==='closed7'){ S.f.state=['closed']; S.f.age=['closed7']; }
+    if(k==='unassigned') S.f.assignee=['__none'];
+    if(k==='stale') S.f.age=['stale'];
     setF('q',''); document.querySelector('.tw').scrollIntoView({behavior:'smooth',block:'nearest'}); }
 });
 document.addEventListener('keydown',e=>{ if((e.key==='Enter'||e.key===' ') && e.target.matches('[role=button]')){ e.preventDefault(); e.target.click(); } });
