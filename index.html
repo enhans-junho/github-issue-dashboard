@@ -295,6 +295,7 @@ td.nowrap{white-space:nowrap;color:var(--ink-2);font-variant-numeric:tabular-num
   </section>
 
   <section class="kpis" id="kpis" aria-label="핵심 지표"></section>
+  <section class="kpis" id="qualityKpis" aria-label="결함 및 개선요건"></section>
 
   <section class="grid">
     <div class="panel span-8">
@@ -717,6 +718,12 @@ function kpiTile({k,v,unit,s,status,onclick,title}){
   return `<div class="kpi${onclick?' clickable':''}" ${onclick?`data-kpi="${onclick}" tabindex="0" role="button"`:''} title="${esc(title||'')}">
     <div class="k">${esc(k)} ${st}</div><div class="v">${v}${unit?`<small>${esc(unit)}</small>`:''}</div><div class="s">${s||''}</div></div>`;
 }
+const qualityMetrics = [
+  {key:'unitDefects', name:'단위테스트 결함 미해결', label:'단위 테스트 결함', state:'open'},
+  {key:'integrationDefects', name:'통합테스트 결함 미해결', label:'통합테스트 결함', state:'open'},
+  {key:'bugs', name:'결함', label:'bug', state:'all'},
+  {key:'enhancements', name:'개선요건', label:'enhancement', state:'all'}
+];
 function renderKpis(){
   const all=[...S.issues.values()], open=all.filter(i=>i.state==='open');
   const now=Date.now(), today=dayKey(now);
@@ -741,6 +748,17 @@ function renderKpis(){
     kpiTile({k:'처리 시간 중앙값',v:med==null?'—':(med<1?(med*24).toFixed(1):med.toFixed(1)),unit:med==null?'':(med<1?'시간':'일'),s:`최근 30일 종료 ${lead.length}건 기준`,
       title:'생성 → 종료까지 걸린 시간의 중앙값'})
   ].join('');
+  $('#qualityKpis').innerHTML=qualityMetrics.map(metric=>{
+    const labeled=all.filter(issue=>issue.labels.some(label=>label.name===metric.label));
+    const unresolved=labeled.filter(issue=>issue.state==='open').length;
+    const openOnly=metric.state==='open';
+    return kpiTile({
+      k:metric.name, v:(openOnly?unresolved:labeled.length).toLocaleString(), unit:'건',
+      s:openOnly?`전체 ${labeled.length}건 중`:`전체 · 미해결 ${unresolved}건`,
+      title:`${metric.label} 라벨 · ${openOnly?'열린 이슈':'열린 이슈와 닫힌 이슈'}`,
+      onclick:metric.key
+    });
+  }).join('');
 }
 
 /* ---- 툴팁 ---- */
@@ -855,6 +873,7 @@ function renderMilestones(){
 function renderFilterOptions(){
   const labels=new Set(), people=new Set(), ms=new Set();
   for(const i of S.issues.values()){ i.labels.forEach(l=>labels.add(l.name)); i.assignees.forEach(a=>people.add(a)); if(i.milestone) ms.add(i.milestone.title); }
+  if(S.f.label && S.f.label!=='__none') labels.add(S.f.label);
   const opt=(v,t,cur)=>`<option value="${esc(v)}"${cur===v?' selected':''}>${esc(t)}</option>`;
   $('#flLabel').innerHTML=opt('','라벨 전체',S.f.label)+opt('__none','(라벨 없음)',S.f.label)+[...labels].sort().map(l=>opt(l,l,S.f.label)).join('');
   $('#flAssignee').innerHTML=opt('','담당자 전체',S.f.assignee)+opt('__none','(미배정)',S.f.assignee)+[...people].sort().map(p=>opt(p,p,S.f.assignee)).join('');
@@ -1030,6 +1049,8 @@ document.addEventListener('click',e=>{
   if (c){ const v=c.dataset.age; S.f.state='open'; setF('age',S.f.age===v?'':v); return; }
   const kp=e.target.closest('[data-kpi]');
   if (kp){ const k=kp.dataset.kpi; S.f={...S.f,label:'',assignee:'',milestone:'',age:'',q:''}; $('#flQ').value='';
+    const metric=qualityMetrics.find(item=>item.key===k);
+    if(metric){ S.f.state=metric.state; S.f.label=metric.label; }
     if(k==='open'){S.f.state='open';} if(k==='today'){S.f.state='all';S.f.age='today';} if(k==='closed7'){S.f.state='closed';S.f.age='closed7';}
     if(k==='unassigned'){S.f.state='open';S.f.assignee='__none';} if(k==='stale'){S.f.state='open';S.f.age='stale';}
     setF('q',''); document.querySelector('.tw').scrollIntoView({behavior:'smooth',block:'nearest'}); }
