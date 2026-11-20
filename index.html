@@ -680,6 +680,9 @@ function saveCache(){
 }
 function loadCache(){
   const c=lsGet('ghmon.cache.'+repoKey(),null); if(!c||!c.issues) return false;
+  // GitHub 라벨 이름 변경은 모든 이슈의 갱신 시각에 반영되지 않는다.
+  if(repoKey().toLowerCase()==='enhans-main-org/agentos-fde-ksqa-platform' &&
+     c.issues.some(issue=>issue.labels.some(l=>['단위 테스트 결함','통합테스트 결함'].includes(l.name)))) return false;
   S.issues=new Map(c.issues.map(i=>[i.number,i])); S.lastSince=c.lastSince; S.lastFull=c.lastFull||0;
   S.events=new Map((c.events||[]).map(e=>[+String(e.id).slice(1),e])); S.comments=new Map((c.comments||[]).map(e=>[+String(e.id).slice(1),e]));
   S.initialized=true; S.quietNext=true; S.lastSync=c.savedAt||0;
